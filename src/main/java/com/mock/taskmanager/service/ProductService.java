@@ -12,6 +12,8 @@ import com.mock.taskmanager.repository.ProductSpecifications;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -23,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ProductService {
 
+    public static final String PRODUCT_CACHE = "products";
     public static final int MAX_PAGE_SIZE = 100;
 
     private final ProductRepository productRepository;
@@ -49,11 +52,13 @@ public class ProductService {
         return products.map(productMapper::toResponse);
     }
 
+    @Cacheable(cacheNames = PRODUCT_CACHE, key = "#id")
     @Transactional(readOnly = true)
     public ProductResponse get(UUID id) {
         return productMapper.toResponse(find(id));
     }
 
+    @CacheEvict(cacheNames = PRODUCT_CACHE, key = "#id")
     @Transactional
     public ProductResponse update(UUID id, ProductRequest request) {
         Product product = find(id);
@@ -65,6 +70,7 @@ public class ProductService {
         return productMapper.toResponse(productRepository.save(product));
     }
 
+    @CacheEvict(cacheNames = PRODUCT_CACHE, key = "#id")
     @Transactional
     public void delete(UUID id) {
         productRepository.delete(find(id));
