@@ -11,6 +11,7 @@ import com.edstem.taskmanager.dto.request.TaskRequest;
 import com.edstem.taskmanager.dto.response.TaskResponse;
 import com.edstem.taskmanager.entity.Task;
 import com.edstem.taskmanager.entity.TaskStatus;
+import com.edstem.taskmanager.exception.InvalidRequestParameterException;
 import com.edstem.taskmanager.exception.TaskNotFoundException;
 import com.edstem.taskmanager.mapper.TaskMapper;
 import com.edstem.taskmanager.repository.TaskRepository;
@@ -88,6 +89,27 @@ class TaskServiceTest {
 
         assertThat(page.getContent()).extracting(TaskResponse::status).containsExactly(TaskStatus.DONE);
         verify(taskRepository, never()).findAll(any(Pageable.class));
+    }
+
+    @Test
+    void listRejectsAPageWhoseOffsetDoesNotFitInAnInt() {
+        Pageable pageable = PageRequest.of(2_000_000, 2000);
+
+        InvalidRequestParameterException thrown =
+                assertThrows(InvalidRequestParameterException.class, () -> taskService.list(null, pageable));
+
+        assertThat(thrown.getParameter()).isEqualTo("page");
+        verify(taskRepository, never()).findAll(any(Pageable.class));
+    }
+
+    @Test
+    void listAcceptsALargePageWhoseOffsetStillFitsInAnInt() {
+        Pageable pageable = PageRequest.of(1_000_000, 2000);
+        when(taskRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of()));
+
+        Page<TaskResponse> page = taskService.list(null, pageable);
+
+        assertThat(page.getContent()).isEmpty();
     }
 
     @Test

@@ -4,6 +4,7 @@ import com.edstem.taskmanager.dto.request.TaskRequest;
 import com.edstem.taskmanager.dto.response.TaskResponse;
 import com.edstem.taskmanager.entity.Task;
 import com.edstem.taskmanager.entity.TaskStatus;
+import com.edstem.taskmanager.exception.InvalidRequestParameterException;
 import com.edstem.taskmanager.exception.TaskNotFoundException;
 import com.edstem.taskmanager.mapper.TaskMapper;
 import com.edstem.taskmanager.repository.TaskRepository;
@@ -34,6 +35,9 @@ public class TaskService {
 
     @Transactional(readOnly = true)
     public Page<TaskResponse> list(TaskStatus status, Pageable pageable) {
+        if (pageable.isPaged() && pageable.getOffset() > Integer.MAX_VALUE) {
+            throw new InvalidRequestParameterException("page", "page is too large for the requested size");
+        }
         Page<Task> tasks = status == null
                 ? taskRepository.findAll(pageable)
                 : taskRepository.findByStatus(status, pageable);

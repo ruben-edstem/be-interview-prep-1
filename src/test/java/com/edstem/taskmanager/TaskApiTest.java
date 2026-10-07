@@ -64,6 +64,15 @@ class TaskApiTest {
     }
 
     @Test
+    void hugePageNumberReturns400NamingThePageParameter() throws Exception {
+        mockMvc.perform(get("/api/v1/tasks").param("page", "2000000").param("size", "2000"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("page"))
+                .andExpect(jsonPath("$.fieldErrors[0].message").value("page is too large for the requested size"));
+    }
+
+    @Test
     void unknownStatusInTheBodyReturns400NamingTheField() throws Exception {
         String body = """
                 {"title": "Write tests", "status": "ARCHIVED"}

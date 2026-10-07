@@ -35,6 +35,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return respond(ex.getStatus(), ex.getCode(), ex.getMessage(), List.of());
     }
 
+    @ExceptionHandler(InvalidRequestParameterException.class)
+    public ResponseEntity<Object> handleInvalidParameter(InvalidRequestParameterException ex) {
+        FieldViolation violation = new FieldViolation(ex.getParameter(), ex.getReason());
+        return respond(ex.getStatus(), ex.getCode(), ex.getMessage(), List.of(violation));
+    }
+
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<Object> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
         FieldViolation violation = new FieldViolation(ex.getName(), "has an invalid value: " + ex.getValue());
