@@ -1,6 +1,7 @@
 package com.edstem.taskmanager.controller;
 
 import com.edstem.taskmanager.dto.request.TaskRequest;
+import com.edstem.taskmanager.dto.response.ApiResponse;
 import com.edstem.taskmanager.dto.response.TaskResponse;
 import com.edstem.taskmanager.entity.TaskStatus;
 import com.edstem.taskmanager.service.TaskService;
@@ -31,25 +32,25 @@ public class TaskController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public TaskResponse create(@Valid @RequestBody TaskRequest request) {
-        return taskService.create(request);
+    public ApiResponse<TaskResponse> create(@Valid @RequestBody TaskRequest request) {
+        return ApiResponse.ok(taskService.create(request));
     }
 
     @GetMapping
-    public PagedModel<TaskResponse> list(
+    public ApiResponse<PagedModel<TaskResponse>> list(
             @RequestParam(required = false) TaskStatus status,
             @PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
-        return new PagedModel<>(taskService.list(status, pageable));
+        return ApiResponse.ok(new PagedModel<>(taskService.list(status, pageable)));
     }
 
     @GetMapping("/{id}")
-    public TaskResponse get(@PathVariable UUID id) {
-        return taskService.get(id);
+    public ApiResponse<TaskResponse> get(@PathVariable UUID id) {
+        return ApiResponse.ok(taskService.get(id));
     }
 
     @PutMapping("/{id}")
-    public TaskResponse update(@PathVariable UUID id, @Valid @RequestBody TaskRequest request) {
-        return taskService.update(id, request);
+    public ApiResponse<TaskResponse> update(@PathVariable UUID id, @Valid @RequestBody TaskRequest request) {
+        return ApiResponse.ok(taskService.update(id, request));
     }
 
     @DeleteMapping("/{id}")

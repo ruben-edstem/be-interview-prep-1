@@ -54,9 +54,10 @@ class TaskControllerTest {
 
         mockMvc.perform(post("/api/v1/tasks").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(TASK_ID.toString()))
-                .andExpect(jsonPath("$.status").value("TO_DO"))
-                .andExpect(jsonPath("$.dueDate").value(dueDate.toString()));
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.id").value(TASK_ID.toString()))
+                .andExpect(jsonPath("$.data.status").value("TO_DO"))
+                .andExpect(jsonPath("$.data.dueDate").value(dueDate.toString()));
     }
 
     @Test
@@ -145,8 +146,9 @@ class TaskControllerTest {
 
         mockMvc.perform(get("/api/v1/tasks").param("status", "DONE"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].status").value("DONE"))
-                .andExpect(jsonPath("$.page.totalElements").value(1));
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.content[0].status").value("DONE"))
+                .andExpect(jsonPath("$.data.page.totalElements").value(1));
 
         verify(taskService).list(eq(TaskStatus.DONE), any(Pageable.class));
     }
@@ -158,7 +160,7 @@ class TaskControllerTest {
 
         mockMvc.perform(get("/api/v1/tasks"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content").isEmpty());
+                .andExpect(jsonPath("$.data.content").isEmpty());
     }
 
     @Test
@@ -174,7 +176,7 @@ class TaskControllerTest {
 
         mockMvc.perform(get("/api/v1/tasks/{id}", TASK_ID))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("IN_PROGRESS"));
+                .andExpect(jsonPath("$.data.status").value("IN_PROGRESS"));
     }
 
     @Test
@@ -205,7 +207,7 @@ class TaskControllerTest {
 
         mockMvc.perform(put("/api/v1/tasks/{id}", TASK_ID).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("DONE"));
+                .andExpect(jsonPath("$.data.status").value("DONE"));
     }
 
     @Test
