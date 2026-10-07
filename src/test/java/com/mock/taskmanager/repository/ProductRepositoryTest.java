@@ -81,6 +81,27 @@ class ProductRepositoryTest {
     }
 
     @Test
+    void anEmptyCategoryIsIgnored() {
+        Page<Product> page = find(new ProductFilter("", null, null, null, null));
+
+        assertThat(page.getTotalElements()).isEqualTo(5);
+    }
+
+    @Test
+    void aBlankNameIsIgnored() {
+        Page<Product> page = find(new ProductFilter(null, null, null, null, "   "));
+
+        assertThat(page.getTotalElements()).isEqualTo(5);
+    }
+
+    @Test
+    void spacesAroundTheNameSearchAreTrimmed() {
+        Page<Product> page = find(new ProductFilter(null, null, null, null, "  lamp "));
+
+        assertThat(page.getContent()).extracting(Product::getName).containsExactlyInAnyOrder("Red Lamp", "Blue Lamp");
+    }
+
+    @Test
     void everyFilterCombinesInOneQuery() {
         ProductFilter filter = new ProductFilter("Home", 1_000L, 3_000L, true, "lamp");
 
