@@ -9,3 +9,6 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: ${JPA_DDL_AUTO:update}
+
+shortener:
+  base-url: ${SHORTENER_BASE_URL:http://localhost:8080}
