@@ -98,6 +98,29 @@ class TaskControllerTest {
     }
 
     @Test
+    void createWithDescriptionOver2000CharactersReturns400() throws Exception {
+        String body = """
+                {"title": "Write tests", "description": "%s"}
+                """.formatted("a".repeat(2001));
+
+        mockMvc.perform(post("/api/v1/tasks").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("description"))
+                .andExpect(jsonPath("$.fieldErrors[0].message").value("description must be at most 2000 characters"));
+    }
+
+    @Test
+    void createWithDescriptionOfExactly2000CharactersIsAccepted() throws Exception {
+        when(taskService.create(any(TaskRequest.class))).thenReturn(response(TaskStatus.TO_DO, null));
+        String body = """
+                {"title": "Write tests", "description": "%s"}
+                """.formatted("a".repeat(2000));
+
+        mockMvc.perform(post("/api/v1/tasks").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
     void createWithPastDueDateReturns400() throws Exception {
         String body = """
                 {"title": "Write tests", "dueDate": "%s"}
