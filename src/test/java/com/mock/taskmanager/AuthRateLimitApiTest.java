@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.net.URI;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,6 +51,23 @@ class AuthRateLimitApiTest {
 
         mockMvc.perform(post("/api/v1/auth/register").with(client)
                         .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isTooManyRequests());
+    }
+
+    @Test
+    void anEncodedLoginPathCountsAgainstTheSameLimit() throws Exception {
+        RequestPostProcessor client = fromAddress("10.0.0.6");
+        for (int attempt = 0; attempt < 3; attempt++) {
+            mockMvc.perform(post(URI.create("/api/v1/auth/%6cogin")).with(client)
+                            .contentType(MediaType.APPLICATION_JSON).content(unknownUserBody()))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        mockMvc.perform(post(URI.create("/api/v1/auth/regi%73ter")).with(client)
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isTooManyRequests());
+        mockMvc.perform(post("/api/v1/auth/login").with(client)
+                        .contentType(MediaType.APPLICATION_JSON).content(unknownUserBody()))
                 .andExpect(status().isTooManyRequests());
     }
 
