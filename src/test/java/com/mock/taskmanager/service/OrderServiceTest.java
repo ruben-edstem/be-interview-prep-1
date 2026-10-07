@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.mock.taskmanager.dto.request.OrderItemRequest;
@@ -36,8 +37,12 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @ExtendWith(MockitoExtension.class)
@@ -56,11 +61,89 @@ class OrderServiceTest {
     @Mock
     private TransactionTemplate transactionTemplate;
 
+    @Mock
+    private CacheManager cacheManager;
+
+    @Mock
+    private Cache productCache;
+
     private OrderService orderService;
 
     @BeforeEach
     void setUp() {
-        orderService = new OrderService(orderRepository, productRepository, new OrderMapper(), transactionTemplate);
+        orderService = new OrderService(
+                orderRepository, productRepository, new OrderMapper(), transactionTemplate, cacheManager);
+    }
+
+    @Test
+    void placeEvictsEveryOrderedProductFromTheProductCache() {
+        runTransactionCallbacks();
+        when(orderRepository.findByIdempotencyKey("key-1")).thenReturn(Optional.empty());
+        when(productRepository.reserveStock(any(UUID.class), anyLong())).thenReturn(1);
+        when(cacheManager.getCache("products")).thenReturn(productCache);
+
+        orderService.place("key-1", request(item(PRODUCT_A, 1), item(PRODUCT_B, 1)));
+
+        verify(productCache).evict(PRODUCT_A);
+        verify(productCache).evict(PRODUCT_B);
+    }
+
+    @Test
+    void placeLeavesTheProductCacheAloneWhenStockIsShort() {
+        runTransactionCallbacks();
+        when(orderRepository.findByIdempotencyKey("key-1")).thenReturn(Optional.empty());
+        when(productRepository.reserveStock(PRODUCT_A, 5)).thenReturn(0);
+        when(productRepository.findById(PRODUCT_A))
+                .thenReturn(Optional.of(Product.builder().name("Widget").stock(2).build()));
+
+        assertThrows(InsufficientStockException.class,
+                () -> orderService.place("key-1", request(item(PRODUCT_A, 5))));
+
+        verifyNoInteractions(cacheManager);
+    }
+
+    @Test
+    void placeEvictsOnlyAfterTheTransactionCommits() {
+        runTransactionCallbacks();
+        when(orderRepository.findByIdempotencyKey("key-1")).thenReturn(Optional.empty());
+        when(productRepository.reserveStock(any(UUID.class), anyLong())).thenReturn(1);
+        when(cacheManager.getCache("products")).thenReturn(productCache);
+        TransactionSynchronizationManager.initSynchronization();
+
+        try {
+            orderService.place("key-1", request(item(PRODUCT_A, 1)));
+
+            verifyNoInteractions(productCache);
+            TransactionSynchronizationManager.getSynchronizations()
+                    .forEach(TransactionSynchronization::afterCommit);
+            verify(productCache).evict(PRODUCT_A);
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+    }
+
+    @Test
+    void cancelEvictsEveryReturnedProductFromTheProductCache() {
+        CustomerOrder order = storedOrder(request(item(PRODUCT_A, 4), item(PRODUCT_B, 1)));
+        when(orderRepository.markCancelled(ORDER_ID)).thenReturn(1);
+        when(orderRepository.findWithItemsById(ORDER_ID)).thenReturn(Optional.of(order));
+        when(cacheManager.getCache("products")).thenReturn(productCache);
+
+        orderService.cancel(ORDER_ID);
+
+        verify(productCache).evict(PRODUCT_A);
+        verify(productCache).evict(PRODUCT_B);
+    }
+
+    @Test
+    void cancelOfAnAlreadyCancelledOrderLeavesTheProductCacheAlone() {
+        CustomerOrder order = storedOrder(request(item(PRODUCT_A, 4)));
+        when(orderRepository.markCancelled(ORDER_ID)).thenReturn(0);
+        when(orderRepository.findWithItemsById(ORDER_ID)).thenReturn(Optional.of(order));
+
+        orderService.cancel(ORDER_ID);
+
+        verifyNoInteractions(cacheManager);
     }
 
     @Test

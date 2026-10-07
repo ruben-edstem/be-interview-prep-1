@@ -15,15 +15,20 @@ import com.mock.taskmanager.exception.ProductNotFoundException;
 import com.mock.taskmanager.mapper.OrderMapper;
 import com.mock.taskmanager.repository.OrderRepository;
 import com.mock.taskmanager.repository.ProductRepository;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
@@ -37,6 +42,7 @@ public class OrderService {
     private final ProductRepository productRepository;
     private final OrderMapper orderMapper;
     private final TransactionTemplate transactionTemplate;
+    private final CacheManager cacheManager;
 
     public OrderPlacement place(String idempotencyKey, OrderRequest request) {
         requireValidKey(idempotencyKey);
@@ -61,6 +67,7 @@ public class OrderService {
             order.getItems().stream()
                     .sorted(Comparator.comparing(OrderItem::getProductId))
                     .forEach(item -> productRepository.releaseStock(item.getProductId(), item.getQuantity()));
+            evictProductsAfterCommit(order.getItems().stream().map(OrderItem::getProductId).toList());
         }
         return orderMapper.toResponse(order);
     }
@@ -88,7 +95,28 @@ public class OrderService {
         orderRepository.saveAndFlush(order);
 
         quantities.forEach(this::reserve);
+        evictProductsAfterCommit(quantities.keySet());
         return order;
+    }
+
+    private void evictProductsAfterCommit(Collection<UUID> productIds) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            evictProducts(productIds);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                evictProducts(productIds);
+            }
+        });
+    }
+
+    private void evictProducts(Collection<UUID> productIds) {
+        Cache cache = cacheManager.getCache(ProductService.PRODUCT_CACHE);
+        if (cache != null) {
+            productIds.forEach(cache::evict);
+        }
     }
 
     private void reserve(UUID productId, long quantity) {

@@ -8,6 +8,7 @@ import com.mock.taskmanager.entity.OrderStatus;
 import com.mock.taskmanager.entity.Product;
 import com.mock.taskmanager.repository.OrderRepository;
 import com.mock.taskmanager.repository.ProductRepository;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -41,23 +42,27 @@ class OrderConcurrencyTest {
     @Autowired
     private OrderRepository orderRepository;
 
+    private final List<Product> createdProducts = new ArrayList<>();
+
     private ExecutorService executor;
 
     @BeforeEach
     void setUp() {
         orderRepository.deleteAll();
-        productRepository.deleteAll();
         executor = Executors.newFixedThreadPool(REQUESTS);
     }
 
     @AfterEach
     void tearDown() {
         executor.shutdownNow();
+        orderRepository.deleteAll();
+        productRepository.deleteAll(createdProducts);
+        createdProducts.clear();
     }
 
     @Test
     void fiftySimultaneousOrdersForTenUnitsOfStockSucceedExactlyTenTimes() throws Exception {
-        Product product = productRepository.save(Product.builder().name("Widget").stock(10).build());
+        Product product = createProduct("Widget", 10);
 
         List<Integer> statuses = fireSimultaneously(i -> placeOrder("order-" + i, product.getId(), 1));
 
@@ -69,8 +74,8 @@ class OrderConcurrencyTest {
 
     @Test
     void simultaneousMultiItemOrdersNeverOversellEitherProduct() throws Exception {
-        Product first = productRepository.save(Product.builder().name("First").stock(10).build());
-        Product second = productRepository.save(Product.builder().name("Second").stock(4).build());
+        Product first = createProduct("First", 10);
+        Product second = createProduct("Second", 4);
 
         List<Integer> statuses = fireSimultaneously(i -> placeOrder("multi-" + i, i % 2 == 0
                 ? List.of(first.getId(), second.getId())
@@ -84,7 +89,7 @@ class OrderConcurrencyTest {
 
     @Test
     void fiftySimultaneousRetriesOfOneRequestCreateASingleOrder() throws Exception {
-        Product product = productRepository.save(Product.builder().name("Widget").stock(10).build());
+        Product product = createProduct("Widget", 10);
 
         List<Integer> statuses = fireSimultaneously(i -> placeOrder("retried-key", product.getId(), 3));
 
@@ -96,7 +101,7 @@ class OrderConcurrencyTest {
 
     @Test
     void simultaneousCancelsOfOneOrderReturnTheStockOnce() throws Exception {
-        Product product = productRepository.save(Product.builder().name("Widget").stock(10).build());
+        Product product = createProduct("Widget", 10);
         placeOrder("to-cancel", product.getId(), 4);
         CustomerOrder order = orderRepository.findByIdempotencyKey("to-cancel").orElseThrow();
 
@@ -166,6 +171,19 @@ class OrderConcurrencyTest {
         } catch (Exception ex) {
             throw new IllegalStateException(ex);
         }
+    }
+
+    private Product createProduct(String name, int stock) {
+        Product product = productRepository.save(Product.builder()
+                .name(name)
+                .category("Test")
+                .price(1_000)
+                .stock(stock)
+                .rating(4.0)
+                .createdAt(Instant.now())
+                .build());
+        createdProducts.add(product);
+        return product;
     }
 
     private long stockOf(Product product) {
