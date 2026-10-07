@@ -17,9 +17,8 @@ Backend interview prep: Java 21, Spring Boot, Maven.
 
 Invalid URLs (anything that is not `http` or `https`, blank, or over 2048 characters) get `400`.
 
-Configuration comes from the environment: `SHORTENER_BASE_URL` (default `http://localhost:8080`),
-`DATASOURCE_URL`, `DATASOURCE_USERNAME`, `DATASOURCE_PASSWORD`, `JPA_DDL_AUTO`. The default datasource
-is in-memory H2, so data does not survive a restart.
+The host used in short URLs comes from `SHORTENER_BASE_URL` (default `http://localhost:8080`). The
+datasource is in-memory H2, so data does not survive a restart.
 
 ### Decisions
 
