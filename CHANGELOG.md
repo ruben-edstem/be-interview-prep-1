@@ -2,6 +2,37 @@
 
 All notable changes to this project are recorded here, newest first.
 
+## 0.1.2 - 2026-10-07
+
+### Added
+
+- Registration and login under `/api/v1/auth`:
+  - `POST /api/v1/auth/register` creates an account with a USER role from an email and a password of 8 to 72 characters; the password is stored as a BCrypt hash, the email is lower-cased, and a taken email returns 409;
+  - `POST /api/v1/auth/login` returns a signed bearer token that expires after 15 minutes (`expiresIn` is in seconds); a wrong password and an unknown email give the same 401.
+- Authentication is stateless: no server-side session is created, so web and mobile clients send the token in an `Authorization: Bearer` header.
+- Two roles, USER and ADMIN:
+  - `GET /api/v1/users/me` returns the caller's own profile, taking the user from the token;
+  - `GET /api/v1/users` lists all users, paged, for an ADMIN only; sorting by anything but `email`, `role` or `createdAt` returns 400.
+- An ADMIN account can be seeded at startup by setting `ADMIN_EMAIL` and `ADMIN_PASSWORD`; registration never creates one.
+- A request without a valid token returns 401 and a caller without the right role returns 403, both in the common JSON error format (`UNAUTHENTICATED`, `FORBIDDEN`).
+- `JWT_SECRET` (at least 32 characters) is required to start the application and `app.security.jwt.ttl` sets the token lifetime (default 15 minutes); no secret is kept in the source.
+
+### Changed
+
+- Every endpoint now needs a token except `POST /api/v1/auth/register`, `POST /api/v1/auth/login` and `GET /{code}`, so a short link still opens for anyone. Task, URL shortening and stats requests without a token return 401.
+
+## 0.1.1 - 2026-10-07
+
+### Added
+
+- URL shortener under `/api/v1/urls` and `/{code}`:
+  - `POST /api/v1/urls` takes an `http` or `https` URL (up to 2048 characters) and an optional future `expiresAt`, and returns a short code of 8 letters and digits with the short URL;
+  - `GET /{code}` redirects (302) to the original URL and counts the visit; an unknown code returns 404 and an expired one returns 410;
+  - `GET /api/v1/urls/{code}/stats` returns the original URL, the visit count and the created date.
+- Shortening the same URL twice returns two different codes, each with its own expiry and visit count.
+- Visit counts stay exact when many people open the same link at once.
+- `shortener.base-url` property (environment variable `SHORTENER_BASE_URL`, default `http://localhost:8080`) sets the host used in short URLs.
+
 ## 0.1.0 - 2026-10-07
 
 ### Added

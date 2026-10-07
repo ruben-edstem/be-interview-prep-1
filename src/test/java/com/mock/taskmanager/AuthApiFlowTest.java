@@ -135,6 +135,28 @@ class AuthApiFlowTest {
     }
 
     @Test
+    void shorteningAndStatsNeedATokenButFollowingAShortLinkDoesNot() throws Exception {
+        String email = uniqueEmail();
+        register(email);
+        String token = login(email, PASSWORD);
+        String body = """
+                {"url": "https://example.com/some/long/path"}
+                """;
+        String created = mockMvc.perform(post("/api/v1/urls").contentType(MediaType.APPLICATION_JSON)
+                        .content(body).header("Authorization", "Bearer " + token))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String code = JsonPath.read(created, "$.data.code");
+
+        mockMvc.perform(post("/api/v1/urls").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/urls/{code}/stats", code))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/{code}", code))
+                .andExpect(status().isFound());
+    }
+
+    @Test
     void aValidTokenOpensTheTaskApi() throws Exception {
         String email = uniqueEmail();
         register(email);
