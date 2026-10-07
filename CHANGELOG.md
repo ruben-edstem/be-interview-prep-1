@@ -2,6 +2,18 @@
 
 All notable changes to this project are recorded here, newest first.
 
+## 0.1.1 - 2026-10-07
+
+### Added
+
+- URL shortener under `/api/v1/urls` and `/{code}`:
+  - `POST /api/v1/urls` takes an `http` or `https` URL (up to 2048 characters) and an optional future `expiresAt`, and returns a short code of 8 letters and digits with the short URL;
+  - `GET /{code}` redirects (302) to the original URL and counts the visit; an unknown code returns 404 and an expired one returns 410;
+  - `GET /api/v1/urls/{code}/stats` returns the original URL, the visit count and the created date.
+- Shortening the same URL twice returns two different codes, each with its own expiry and visit count.
+- Visit counts stay exact when many people open the same link at once.
+- `shortener.base-url` property (environment variable `SHORTENER_BASE_URL`, default `http://localhost:8080`) sets the host used in short URLs.
+
 ## 0.1.0 - 2026-10-07
 
 ### Added
