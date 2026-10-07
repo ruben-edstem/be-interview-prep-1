@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: interview-prep
+  datasource:
+    url: ${DATASOURCE_URL:jdbc:h2:mem:interviewprep;DB_CLOSE_DELAY=-1}
+    username: ${DATASOURCE_USERNAME:sa}
+    password: ${DATASOURCE_PASSWORD:}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
