@@ -8,7 +8,7 @@
 		<version>4.1.1</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
-	<groupId>com.edstem</groupId>
+	<groupId>com.mock</groupId>
 	<artifactId>taskmanager</artifactId>
 	<version>0.1.0</version>
 	<name>taskmanager</name>
