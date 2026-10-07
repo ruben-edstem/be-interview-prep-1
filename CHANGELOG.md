@@ -2,6 +2,21 @@
 
 All notable changes to this project are recorded here, newest first.
 
+## 0.1.3 - 2026-10-07
+
+### Added
+
+- Order service under `/api/v1/orders`:
+  - `POST /api/v1/orders` places an order with one or more items (`productId` and `quantity`); it needs an `Idempotency-Key` header of up to 100 characters;
+  - `GET /api/v1/orders/{id}` returns an order;
+  - `POST /api/v1/orders/{id}/cancel` cancels an order and returns its stock; cancelling twice returns the stock only once.
+- An order is all-or-nothing: if any item is short of stock, no stock is taken and no order is created. Insufficient stock returns 409 with the product, the quantity asked for and the quantity available.
+- Stock is never oversold, even when many orders for the same product arrive at the same moment.
+- A retried request is recognised by its `Idempotency-Key`:
+  - a repeat of the same request returns the original order (200 instead of 201) and takes no more stock, including when the repeats arrive at the same moment;
+  - the same key sent with different items returns 422.
+- Orders take their stock from the product catalog. A cached product lookup never shows stale stock after an order is placed or cancelled.
+
 ## 0.1.2 - 2026-10-07
 
 ### Added
