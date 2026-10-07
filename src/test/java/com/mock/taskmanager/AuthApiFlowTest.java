@@ -134,6 +134,50 @@ class AuthApiFlowTest {
     }
 
     @Test
+    void anEmailIsLockedAfterFiveFailedLoginsEvenForTheRightPassword() throws Exception {
+        String email = uniqueEmail();
+        register(email);
+        for (int attempt = 0; attempt < 5; attempt++) {
+            mockMvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
+                            .content(credentials(email, "not-the-password")))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        mockMvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content(credentials(email, PASSWORD)))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("TOO_MANY_REQUESTS"));
+    }
+
+    @Test
+    void aSuccessfulLoginResetsTheFailedAttemptCount() throws Exception {
+        String email = uniqueEmail();
+        register(email);
+        for (int round = 0; round < 2; round++) {
+            for (int attempt = 0; attempt < 4; attempt++) {
+                mockMvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
+                                .content(credentials(email, "not-the-password")))
+                        .andExpect(status().isUnauthorized());
+            }
+            login(email, PASSWORD);
+        }
+    }
+
+    @Test
+    void failedLoginsForAnUnknownEmailAreLockedLikeAKnownOne() throws Exception {
+        String email = uniqueEmail();
+        for (int attempt = 0; attempt < 5; attempt++) {
+            mockMvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
+                            .content(credentials(email, PASSWORD)))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        mockMvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content(credentials(email, PASSWORD)))
+                .andExpect(status().isTooManyRequests());
+    }
+
+    @Test
     void aRequestWithoutATokenReturns401AsJson() throws Exception {
         mockMvc.perform(get("/api/v1/tasks"))
                 .andExpect(status().isUnauthorized())

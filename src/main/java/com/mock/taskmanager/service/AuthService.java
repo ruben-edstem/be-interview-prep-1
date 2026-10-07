@@ -21,14 +21,16 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final TokenService tokenService;
+    private final LoginAttemptLimiter loginAttemptLimiter;
     private final String missingUserHash;
 
     public AuthService(UserService userService, UserRepository userRepository,
-            PasswordEncoder passwordEncoder, TokenService tokenService) {
+            PasswordEncoder passwordEncoder, TokenService tokenService, LoginAttemptLimiter loginAttemptLimiter) {
         this.userService = userService;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.tokenService = tokenService;
+        this.loginAttemptLimiter = loginAttemptLimiter;
         this.missingUserHash = passwordEncoder.encode(UUID.randomUUID().toString());
     }
 
@@ -38,12 +40,16 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public TokenResponse login(LoginRequest request) {
-        Optional<User> found = userRepository.findByEmail(UserService.normalizeEmail(request.email()));
+        String email = UserService.normalizeEmail(request.email());
+        loginAttemptLimiter.assertAllowed(email);
+        Optional<User> found = userRepository.findByEmail(email);
         String hash = found.map(User::getPasswordHash).orElse(missingUserHash);
         boolean passwordMatches = passwordEncoder.matches(request.password(), hash);
         if (found.isEmpty() || !passwordMatches) {
+            loginAttemptLimiter.recordFailure(email);
             throw new InvalidCredentialsException();
         }
+        loginAttemptLimiter.reset(email);
         return tokenService.issue(found.orElseThrow());
     }
 }

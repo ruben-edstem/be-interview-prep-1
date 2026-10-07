@@ -3,6 +3,7 @@ package com.mock.taskmanager.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -15,6 +16,7 @@ import com.mock.taskmanager.dto.response.UserResponse;
 import com.mock.taskmanager.entity.Role;
 import com.mock.taskmanager.entity.User;
 import com.mock.taskmanager.exception.InvalidCredentialsException;
+import com.mock.taskmanager.exception.TooManyRequestsException;
 import com.mock.taskmanager.repository.UserRepository;
 import java.time.Instant;
 import java.util.Optional;
@@ -44,12 +46,15 @@ class AuthServiceTest {
     @Mock
     private TokenService tokenService;
 
+    @Mock
+    private LoginAttemptLimiter loginAttemptLimiter;
+
     private AuthService authService;
 
     @BeforeEach
     void setUp() {
         when(passwordEncoder.encode(anyString())).thenReturn(MISSING_USER_HASH);
-        authService = new AuthService(userService, userRepository, passwordEncoder, tokenService);
+        authService = new AuthService(userService, userRepository, passwordEncoder, tokenService, loginAttemptLimiter);
     }
 
     @Test
@@ -73,6 +78,53 @@ class AuthServiceTest {
         TokenResponse issued = authService.login(new LoginRequest(" Ada@Example.com ", "s3cret-pass"));
 
         assertThat(issued).isSameAs(token);
+    }
+
+    @Test
+    void loginClearsTheFailureCountAfterASuccess() {
+        User user = user();
+        when(userRepository.findByEmail("ada@example.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("s3cret-pass", "hashed-pass")).thenReturn(true);
+        when(tokenService.issue(user)).thenReturn(TokenResponse.bearer("signed-token", 900));
+
+        authService.login(new LoginRequest("ada@example.com", "s3cret-pass"));
+
+        verify(loginAttemptLimiter).reset("ada@example.com");
+        verify(loginAttemptLimiter, never()).recordFailure(anyString());
+    }
+
+    @Test
+    void loginRecordsAFailureForTheWrongPassword() {
+        when(userRepository.findByEmail("ada@example.com")).thenReturn(Optional.of(user()));
+        when(passwordEncoder.matches("wrong-pass", "hashed-pass")).thenReturn(false);
+
+        assertThrows(InvalidCredentialsException.class,
+                () -> authService.login(new LoginRequest("ada@example.com", "wrong-pass")));
+
+        verify(loginAttemptLimiter).recordFailure("ada@example.com");
+        verify(loginAttemptLimiter, never()).reset(anyString());
+    }
+
+    @Test
+    void loginRecordsAFailureForAnUnknownEmailToo() {
+        when(userRepository.findByEmail("nobody@example.com")).thenReturn(Optional.empty());
+
+        assertThrows(InvalidCredentialsException.class,
+                () -> authService.login(new LoginRequest("nobody@example.com", "s3cret-pass")));
+
+        verify(loginAttemptLimiter).recordFailure("nobody@example.com");
+    }
+
+    @Test
+    void loginIsRefusedWithoutAnyLookupWhileTheEmailIsBlocked() {
+        doThrow(new TooManyRequestsException()).when(loginAttemptLimiter).assertAllowed("ada@example.com");
+
+        assertThrows(TooManyRequestsException.class,
+                () -> authService.login(new LoginRequest("ada@example.com", "s3cret-pass")));
+
+        verify(userRepository, never()).findByEmail(anyString());
+        verify(passwordEncoder, never()).matches(anyString(), anyString());
+        verify(tokenService, never()).issue(any(User.class));
     }
 
     @Test

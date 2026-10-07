@@ -1,9 +1,11 @@
 package com.mock.taskmanager.config;
 
 import com.mock.taskmanager.entity.Role;
+import com.mock.taskmanager.security.AuthRateLimitFilter;
 import com.mock.taskmanager.security.JsonAccessDeniedHandler;
 import com.mock.taskmanager.security.JsonAuthenticationEntryPoint;
 import com.mock.taskmanager.security.SecurityErrorWriter;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
@@ -16,10 +18,12 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 @EnableWebSecurity
+@EnableConfigurationProperties(RateLimitProperties.class)
 @Import({SecurityErrorWriter.class, JsonAuthenticationEntryPoint.class, JsonAccessDeniedHandler.class})
 public class SecurityConfig {
 
@@ -29,9 +33,13 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             JsonAuthenticationEntryPoint authenticationEntryPoint,
-            JsonAccessDeniedHandler accessDeniedHandler) throws Exception {
+            JsonAccessDeniedHandler accessDeniedHandler,
+            RateLimitProperties rateLimitProperties,
+            SecurityErrorWriter errorWriter) throws Exception {
+        AuthRateLimitFilter rateLimitFilter = new AuthRateLimitFilter(rateLimitProperties, errorWriter);
         return http
                 .csrf(AbstractHttpConfigurer::disable)
+                .addFilterBefore(rateLimitFilter, BearerTokenAuthenticationFilter.class)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(requests -> requests
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/register", "/api/v1/auth/login").permitAll()
