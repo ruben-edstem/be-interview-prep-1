@@ -2,6 +2,18 @@
 
 All notable changes to this project are recorded here, newest first.
 
+## 0.1.2 - 2026-10-07
+
+### Added
+
+- Product Catalog API under `/api/v1/products`: create, list, get one, update and delete products. The catalog is seeded with 100 products on startup when it is empty.
+- A product has a name, category, price (in cents), stock, rating (0 to 5) and a created date set automatically.
+- The list is paged and can be sorted by any product field (`?sort=price,desc`); the response carries the total count and the number of pages. The default page size is 20 and the cap is 100, so a larger `size` returns 400.
+- The list can be filtered by `category` (exact match), `minPrice` and `maxPrice` (inclusive), `inStock=true` and `name` (case-insensitive search anywhere in the name), in any combination in one request. A negative price or a `minPrice` above `maxPrice` returns 400.
+- Rows with equal sort values are ordered by id as a tie-breaker, so paging never repeats or skips a product.
+- Single-product lookups are cached (Caffeine, up to 10,000 products, 10 minutes). An update or delete evicts the product, so a stale product is never returned. `ProductCachingTest` shows this by counting the SQL statements Hibernate runs.
+- Database indexes on category, price, stock and created date.
+
 ## 0.1.1 - 2026-10-07
 
 ### Added

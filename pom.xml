@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>com.mock</groupId>
 	<artifactId>taskmanager</artifactId>
-	<version>0.1.1</version>
+	<version>0.1.2</version>
 	<name>taskmanager</name>
 	<description>Task Manager REST API</description>
 	<properties>
@@ -28,6 +28,14 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-cache</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.github.ben-manes.caffeine</groupId>
+			<artifactId>caffeine</artifactId>
 		</dependency>
 
 		<dependency>
