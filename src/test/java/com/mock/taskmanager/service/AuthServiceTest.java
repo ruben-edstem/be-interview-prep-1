@@ -2,6 +2,7 @@ package com.mock.taskmanager.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -29,6 +30,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 class AuthServiceTest {
 
     private static final UUID USER_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
+    private static final String MISSING_USER_HASH = "dummy-hash";
 
     @Mock
     private UserService userService;
@@ -46,6 +48,7 @@ class AuthServiceTest {
 
     @BeforeEach
     void setUp() {
+        when(passwordEncoder.encode(anyString())).thenReturn(MISSING_USER_HASH);
         authService = new AuthService(userService, userRepository, passwordEncoder, tokenService);
     }
 
@@ -86,6 +89,27 @@ class AuthServiceTest {
     @Test
     void loginWithAnUnknownEmailThrowsTheSameInvalidCredentials() {
         when(userRepository.findByEmail("nobody@example.com")).thenReturn(Optional.empty());
+
+        assertThrows(InvalidCredentialsException.class,
+                () -> authService.login(new LoginRequest("nobody@example.com", "s3cret-pass")));
+
+        verify(tokenService, never()).issue(any(User.class));
+    }
+
+    @Test
+    void loginWithAnUnknownEmailStillChecksThePasswordAgainstADummyHash() {
+        when(userRepository.findByEmail("nobody@example.com")).thenReturn(Optional.empty());
+
+        assertThrows(InvalidCredentialsException.class,
+                () -> authService.login(new LoginRequest("nobody@example.com", "s3cret-pass")));
+
+        verify(passwordEncoder).matches("s3cret-pass", MISSING_USER_HASH);
+    }
+
+    @Test
+    void loginRejectsAnUnknownEmailEvenWhenTheDummyHashWouldMatch() {
+        when(userRepository.findByEmail("nobody@example.com")).thenReturn(Optional.empty());
+        when(passwordEncoder.matches("s3cret-pass", MISSING_USER_HASH)).thenReturn(true);
 
         assertThrows(InvalidCredentialsException.class,
                 () -> authService.login(new LoginRequest("nobody@example.com", "s3cret-pass")));
