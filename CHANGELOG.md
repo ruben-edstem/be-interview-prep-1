@@ -7,7 +7,7 @@ All notable changes to this project are recorded here, newest first.
 ### Added
 
 - Registration and login under `/api/v1/auth`:
-  - `POST /api/v1/auth/register` creates an account with a USER role from an email and a password of 8 to 72 characters; the password is stored as a BCrypt hash, the email is lower-cased, and a taken email returns 409;
+  - `POST /api/v1/auth/register` creates an account with a USER role from an email and a password of at least 8 characters and at most 72 bytes (a longer one returns 400 with a field message); the password is stored as a BCrypt hash, the email is lower-cased, and a taken email returns 409;
   - `POST /api/v1/auth/login` returns a signed bearer token that expires after 15 minutes (`expiresIn` is in seconds); a wrong password and an unknown email give the same 401.
 - Authentication is stateless: no server-side session is created, so web and mobile clients send the token in an `Authorization: Bearer` header.
 - Two roles, USER and ADMIN:

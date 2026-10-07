@@ -106,6 +106,15 @@ class AuthApiFlowTest {
     }
 
     @Test
+    void registeringWithAMultibytePasswordOver72BytesReturns400NotAServerError() throws Exception {
+        String body = credentials(uniqueEmail(), "é".repeat(40));
+
+        mockMvc.perform(post("/api/v1/auth/register").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("password"));
+    }
+
+    @Test
     void loginWithAWrongPasswordAndLoginWithAnUnknownEmailAreIndistinguishable() throws Exception {
         String email = uniqueEmail();
         register(email);

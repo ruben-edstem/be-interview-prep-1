@@ -95,14 +95,52 @@ class AuthControllerTest {
     }
 
     @Test
-    void registerWithPasswordOver72CharactersReturns400() throws Exception {
+    void registerWithPasswordOver72BytesReturns400() throws Exception {
         String body = """
                 {"email": "ada@example.com", "password": "%s"}
                 """.formatted("a".repeat(73));
 
         mockMvc.perform(post("/api/v1/auth/register").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.fieldErrors[0].field").value("password"));
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("password"))
+                .andExpect(jsonPath("$.fieldErrors[0].message").value("password must be at most 72 bytes"));
+    }
+
+    @Test
+    void registerWithFewerThan72CharactersButMoreThan72BytesReturns400() throws Exception {
+        String body = """
+                {"email": "ada@example.com", "password": "%s"}
+                """.formatted("é".repeat(40));
+
+        mockMvc.perform(post("/api/v1/auth/register").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("password"))
+                .andExpect(jsonPath("$.fieldErrors[0].message").value("password must be at most 72 bytes"));
+
+        verifyNoInteractions(authService);
+    }
+
+    @Test
+    void registerWithAPasswordOfExactly72BytesIsAccepted() throws Exception {
+        UserResponse created = new UserResponse(USER_ID, "ada@example.com", Role.USER, Instant.now());
+        when(authService.register(any(RegisterRequest.class))).thenReturn(created);
+        String body = """
+                {"email": "ada@example.com", "password": "%s"}
+                """.formatted("é".repeat(36));
+
+        mockMvc.perform(post("/api/v1/auth/register").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    void registerWithAPasswordUnder8CharactersReturns400() throws Exception {
+        String body = """
+                {"email": "ada@example.com", "password": "short"}
+                """;
+
+        mockMvc.perform(post("/api/v1/auth/register").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[0].message").value("password must be at least 8 characters"));
     }
 
     @Test
