@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.mock.taskmanager.config.SecurityConfig;
 import com.mock.taskmanager.dto.request.TaskRequest;
 import com.mock.taskmanager.dto.response.TaskResponse;
 import com.mock.taskmanager.entity.TaskStatus;
@@ -26,12 +27,17 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(TaskController.class)
+@Import(SecurityConfig.class)
+@WithMockUser
 class TaskControllerTest {
 
     private static final UUID TASK_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
@@ -41,6 +47,9 @@ class TaskControllerTest {
 
     @MockitoBean
     private TaskService taskService;
+
+    @MockitoBean
+    private JwtDecoder jwtDecoder;
 
     @Test
     void createReturns201WithTheCreatedTask() throws Exception {
