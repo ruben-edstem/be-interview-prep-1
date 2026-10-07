@@ -14,4 +14,5 @@ All notable changes to this project are recorded here, newest first.
   - an unknown task returns 404;
   - framework errors such as an unsupported method (405), an unsupported content type (415) and an unknown path (404) keep their own status;
   - anything unexpected returns 500 with a generic message.
+- `app.version` property, filled in from the project version at build time.
 - Spring Boot 4.1.1 project on Java 21 with an in-memory H2 database and a Maven wrapper.
