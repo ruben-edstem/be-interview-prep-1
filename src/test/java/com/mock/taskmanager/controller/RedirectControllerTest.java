@@ -8,16 +8,20 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.mock.taskmanager.config.SecurityConfig;
 import com.mock.taskmanager.exception.ShortUrlExpiredException;
 import com.mock.taskmanager.exception.ShortUrlNotFoundException;
 import com.mock.taskmanager.service.ShortUrlService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(RedirectController.class)
+@Import(SecurityConfig.class)
 class RedirectControllerTest {
 
     @Autowired
@@ -25,6 +29,9 @@ class RedirectControllerTest {
 
     @MockitoBean
     private ShortUrlService service;
+
+    @MockitoBean
+    private JwtDecoder jwtDecoder;
 
     @Test
     void redirectsToOriginalUrlWithoutCaching() throws Exception {

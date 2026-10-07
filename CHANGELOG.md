@@ -2,6 +2,29 @@
 
 All notable changes to this project are recorded here, newest first.
 
+## 0.1.2 - 2026-10-07
+
+### Added
+
+- Registration and login under `/api/v1/auth`:
+  - `POST /api/v1/auth/register` creates an account with a USER role from an email and a password of at least 8 characters and at most 72 bytes (a longer one returns 400 with a field message); the password is stored as a BCrypt hash, the email is lower-cased, and a taken email returns 409;
+  - `POST /api/v1/auth/login` returns a signed bearer token that expires after 15 minutes (`expiresIn` is in seconds); a wrong password and an unknown email give the same 401.
+- Rate limiting on the public auth endpoints, answering 429 in the common JSON error format:
+  - register and login together allow 30 requests per minute from one client address, with a `Retry-After` header on the refusal;
+  - 5 failed logins for one email within 15 minutes block further logins for that email until the window ends, whether or not the email is registered; a successful login clears the count;
+  - the limits are set by `app.security.rate-limit.ip-requests`, `ip-window`, `login-failures` and `login-failure-window`.
+- Authentication is stateless: no server-side session is created, so web and mobile clients send the token in an `Authorization: Bearer` header.
+- Two roles, USER and ADMIN:
+  - `GET /api/v1/users/me` returns the caller's own profile, taking the user from the token;
+  - `GET /api/v1/users` lists all users, paged, for an ADMIN only; sorting by anything but `email`, `role` or `createdAt` returns 400.
+- An ADMIN account can be seeded at startup by setting `ADMIN_EMAIL` and `ADMIN_PASSWORD`; registration never creates one.
+- A request without a valid token returns 401 and a caller without the right role returns 403, both in the common JSON error format (`UNAUTHENTICATED`, `FORBIDDEN`).
+- `JWT_SECRET` (at least 32 characters) is required to start the application and `app.security.jwt.ttl` sets the token lifetime (default 15 minutes); no secret is kept in the source.
+
+### Changed
+
+- Every endpoint now needs a token except `POST /api/v1/auth/register`, `POST /api/v1/auth/login` and `GET /{code}`, so a short link still opens for anyone. Task, URL shortening and stats requests without a token return 401.
+
 ## 0.1.1 - 2026-10-07
 
 ### Added

@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.mock.taskmanager.config.SecurityConfig;
 import com.mock.taskmanager.dto.request.ShortenRequest;
 import com.mock.taskmanager.dto.response.ShortenResponse;
 import com.mock.taskmanager.dto.response.StatsResponse;
@@ -18,11 +19,16 @@ import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(ShortUrlController.class)
+@Import(SecurityConfig.class)
+@WithMockUser
 class ShortUrlControllerTest {
 
     @Autowired
@@ -30,6 +36,9 @@ class ShortUrlControllerTest {
 
     @MockitoBean
     private ShortUrlService service;
+
+    @MockitoBean
+    private JwtDecoder jwtDecoder;
 
     @Test
     void shortenReturnsCreatedWithShortUrl() throws Exception {
