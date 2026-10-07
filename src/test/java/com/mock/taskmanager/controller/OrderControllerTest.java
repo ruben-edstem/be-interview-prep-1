@@ -148,6 +148,17 @@ class OrderControllerTest {
     }
 
     @Test
+    void placeWithANullItemReturns400() throws Exception {
+        mockMvc.perform(post("/api/v1/orders").header("Idempotency-Key", "key-1")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"items\": [null]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.fieldErrors[0].message").value("items must not contain null"));
+
+        verifyNoInteractions(orderService);
+    }
+
+    @Test
     void placeWithMalformedJsonReturns400() throws Exception {
         mockMvc.perform(post("/api/v1/orders").header("Idempotency-Key", "key-1")
                         .contentType(MediaType.APPLICATION_JSON).content("{not json"))
